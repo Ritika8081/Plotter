@@ -1,5 +1,8 @@
 
+
 # Channel Data Plotter
+
+Live Demo: [https://ritika8081.github.io/Plotter/](https://ritika8081.github.io/Plotter/)
 
 A modern, interactive web application built with Next.js and TypeScript for visualizing channel data from CSV files. The app features a responsive UI, CSV upload, and dynamic plotting using Plotly.js.
 
