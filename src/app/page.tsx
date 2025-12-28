@@ -3,33 +3,6 @@
 import React, { useRef, useState } from "react";
 import Plot from "../components/PlotlyChart";
 import Papa from "papaparse";
-// For SVG parsing
-function parseSVGData(svgText: string): { t: number[]; ch: number[] } {
-  // This function extracts points from <polyline> or <polygon> elements as an example
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgText, "image/svg+xml");
-  let points: string | null = null;
-  // Try polyline first
-  const polyline = doc.querySelector("polyline");
-  if (polyline) points = polyline.getAttribute("points");
-  // Fallback to polygon
-  if (!points) {
-    const polygon = doc.querySelector("polygon");
-    if (polygon) points = polygon.getAttribute("points");
-  }
-  if (!points) return { t: [], ch: [] };
-  // Parse points: "x1,y1 x2,y2 ..."
-  const t: number[] = [];
-  const ch: number[] = [];
-  points.trim().split(/\s+/).forEach((pt, idx) => {
-    const [x, y] = pt.split(",").map(Number);
-    if (!isNaN(x) && !isNaN(y)) {
-      t.push(x);
-      ch.push(y);
-    }
-  });
-  return { t, ch };
-}
 
 export default function Home() {
   const [fileName, setFileName] = useState<string>("No file chosen");
@@ -44,19 +17,35 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    if (file.name.endsWith('.svg')) {
-      // SVG file: read as text and parse
+    if (file.name.endsWith('.json')) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const svgText = ev.target?.result as string;
-        const { t, ch } = parseSVGData(svgText);
-        setTimeData(t);
-        setChannelData(ch);
-        setInfo({ totalSamples: ch.length, duration: ch.length });
+        try {
+          const json = JSON.parse(ev.target?.result as string);
+          const sr = json.samplingRate || 500;
+          // Use channel property if present, otherwise default to 'ch1'
+          const channelKey = json.channel ? (json.channel === 1 ? 'ch1' : 'ch' + json.channel) : 'ch1';
+          const t: number[] = [];
+          const ch: number[] = [];
+          if (Array.isArray(json.data)) {
+            json.data.forEach((row: any) => {
+              if (typeof row[channelKey] === 'number' && typeof row.counter === 'number') {
+                t.push(row.counter / sr);
+                ch.push(row[channelKey]);
+              }
+            });
+          }
+          setTimeData(t);
+          setChannelData(ch);
+          setInfo({ totalSamples: ch.length, duration: ch.length / sr });
+        } catch (err) {
+          setTimeData([]);
+          setChannelData([]);
+          setInfo(null);
+        }
       };
       reader.readAsText(file);
     } else {
-      // CSV fallback
       Papa.parse(file, {
         complete: (results) => {
           const data = results.data as string[][];
@@ -95,23 +84,24 @@ export default function Home() {
   };
 
   return (
-    <div className="w-screen h-screen bg-gradient-to-br from-teal-400 to-cyan-500 p-0 font-sans flex flex-col items-center justify-center overflow-hidden">
+ 
+ <div className="w-screen h-screen bg-gradient-to-br from-teal-400 to-cyan-500 p-0 font-sans flex flex-col items-center justify-center overflow-hidden">
       <div className="w-full h-full bg-white/90 rounded-xl p-2 sm:p-4 md:p-6 shadow-2xl flex flex-col gap-2">
         <div className="flex flex-row flex-wrap gap-2 sm:gap-3 mb-3 items-center justify-between w-full px-1">
           <div className="instructions bg-cyan-50 p-3 sm:p-4 rounded-lg border-l-4 border-teal-500 text-xs sm:text-sm min-w-[200px] max-w-sm flex-1 flex flex-col justify-center">
-            <h3 className="text-teal-600 mb-2 font-semibold text-base">Instructions:</h3>
+            <h3 className="text-teal-600 mb-2 font-semibold text-base">How to Use the Plot:</h3>
             <ul className="ml-5 text-gray-700 text-sm list-disc">
-              <li><b>Zoom:</b> Scroll mouse wheel or pinch on touchpad</li>
-              <li><b>Pan:</b> Click and drag on the plot</li>
-              <li><b>Reset:</b> Double-click on the plot or click "Reset View" button</li>
-              <li><b>Window Size:</b> Adjust to change how many seconds visible at once</li>
+              <li><b>Zoom:</b> Use your mouse wheel or pinch on a touchpad to zoom in and out.</li>
+              <li><b>Pan:</b> Click and drag anywhere on the plot to move the view.</li>
+              <li><b>Reset View:</b> Double-click the plot or click the "Reset" button to restore the default view.</li>
+              <li><b>Window Size:</b> Change the window size to control how many seconds of data are shown at once.</li>
             </ul>
           </div>
           <div className="upload-section flex flex-col items-center justify-center min-w-[180px] max-w-xs flex-1">
             <div className="file-input-wrapper inline-block relative w-full max-w-xs">
               <input
                 type="file"
-                accept=".csv,.svg"
+                accept=".csv,.json"
                 id="csvFile"
                 ref={fileInputRef}
                 className="hidden"
@@ -120,9 +110,8 @@ export default function Home() {
               <label
                 htmlFor="csvFile"
                 className="file-label bg-gradient-to-br from-teal-400 to-cyan-500 text-white py-3 px-8 rounded-lg cursor-pointer text-base font-medium transition-transform duration-200 inline-block hover:shadow-lg hover:-translate-y-0.5"
-                onClick={() => fileInputRef.current?.click()}
               >
-                📁 Choose CSV or SVG File
+                📁 Choose CSV or JSON File
               </label>
               <span className="file-name ml-2 text-gray-600 text-sm block truncate max-w-[180px] sm:inline" id="fileName">{fileName}</span>
             </div>
