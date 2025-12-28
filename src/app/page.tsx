@@ -7,7 +7,7 @@ import Papa from "papaparse";
 export default function Home() {
   const [fileName, setFileName] = useState<string>("No file chosen");
   const [timeData, setTimeData] = useState<number[]>([]);
-  const [channelData, setChannelData] = useState<number[]>([]);
+  const [channels, setChannels] = useState<number[][]>([]);
   const [windowSize, setWindowSize] = useState<number>(10);
   const [info, setInfo] = useState<{ totalSamples: number; duration: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,24 +23,26 @@ export default function Home() {
         try {
           const json = JSON.parse(ev.target?.result as string);
           const sr = json.samplingRate || 500;
-          // Use channel property if present, otherwise default to 'ch1'
-          const channelKey = json.channel ? (json.channel === 1 ? 'ch1' : 'ch' + json.channel) : 'ch1';
           const t: number[] = [];
-          const ch: number[] = [];
+          const ch1: number[] = [];
+          const ch2: number[] = [];
+          const ch3: number[] = [];
           if (Array.isArray(json.data)) {
             json.data.forEach((row: any) => {
-              if (typeof row[channelKey] === 'number' && typeof row.counter === 'number') {
+              if (typeof row.counter === 'number') {
                 t.push(row.counter / sr);
-                ch.push(row[channelKey]);
+                if (typeof row.ch1 === 'number') ch1.push(row.ch1);
+                if (typeof row.ch2 === 'number') ch2.push(row.ch2);
+                if (typeof row.ch3 === 'number') ch3.push(row.ch3);
               }
             });
           }
           setTimeData(t);
-          setChannelData(ch);
-          setInfo({ totalSamples: ch.length, duration: ch.length / sr });
+          setChannels([ch1, ch2, ch3].filter(ch => ch.length > 0));
+          setInfo({ totalSamples: t.length, duration: t.length / sr });
         } catch (err) {
           setTimeData([]);
-          setChannelData([]);
+          setChannels([]);
           setInfo(null);
         }
       };
@@ -52,19 +54,18 @@ export default function Home() {
           // Skip header
           const dataLines = data.slice(1);
           const t: number[] = [];
-          const ch: number[] = [];
+          const ch1: number[] = [];
+          const ch2: number[] = [];
+          const ch3: number[] = [];
           dataLines.forEach((row, idx) => {
-            if (row.length >= 2) {
-              const val = parseFloat(row[1]?.trim());
-              if (!isNaN(val)) {
-                t.push(idx / samplingRate);
-                ch.push(val);
-              }
-            }
+            t.push(idx / samplingRate);
+            if (row[1]) ch1.push(Number(row[1]));
+            if (row[2]) ch2.push(Number(row[2]));
+            if (row[3]) ch3.push(Number(row[3]));
           });
           setTimeData(t);
-          setChannelData(ch);
-          setInfo({ totalSamples: ch.length, duration: ch.length / samplingRate });
+          setChannels([ch1, ch2, ch3].filter(ch => ch.length > 0));
+          setInfo({ totalSamples: t.length, duration: t.length / samplingRate });
         },
         skipEmptyLines: true,
       });
@@ -154,36 +155,47 @@ export default function Home() {
         </div>
 
         <div id="plotDiv" className="flex-1 w-full h-0 min-h-[350px] md:min-h-[500px] border-2 border-gray-200 rounded-lg mt-1 sm:mt-2 bg-white flex items-center justify-center">
-          {timeData.length > 0 && (
+          {timeData.length > 0 && channels.length > 0 && (
             <Plot
-              data={[
-                {
-                  x: timeData,
-                  y: channelData,
-                  type: "scattergl",
-                  mode: "lines",
-                  line: { color: "#667eea", width: 1.5 },
-                  name: "Channel 1",
-                },
-              ]}
+              data={channels.map((ch, i) => ({
+                x: timeData,
+                y: ch,
+                type: "scattergl",
+                mode: "lines",
+                name: `Channel ${i + 1}`,
+                line: { width: 1.2 },
+                yaxis: i === 0 ? "y" : `y${i + 1}`,
+              }))}
               layout={{
                 title: {
-                  text: "Channel 1 Data vs Time",
+                  text: `${channels.length} Channel Signal vs Time`,
                   font: { size: 16, color: "#333" },
                 },
-                xaxis: {
-                  title: { text: "Time (seconds)", font: { size: 13, color: "#555" } },
-                  rangeslider: { visible: true, thickness: 0.05 },
-                  range: [0, Math.min(windowSize, timeData[timeData.length - 1] ?? 0)],
-                  showgrid: true,
-                  gridcolor: "#e0e0e0",
-                },
-                yaxis: {
-                  title: { text: "Channel 1 Amplitude", font: { size: 13, color: "#555" } },
-                  showgrid: true,
-                  gridcolor: "#e0e0e0",
-                  autorange: true,
-                },
+                grid: { rows: channels.length, columns: 1, pattern: "independent" },
+                ...Object.fromEntries(
+                  channels.map((_, i) => [
+                    `xaxis${i === 0 ? '' : i + 1}`,
+                    {
+                      title: { text: "Time (seconds)", font: { size: 13, color: "#555" } },
+                      rangeslider: { visible: true, thickness: 0.05 },
+                      range: [0, Math.min(windowSize, timeData[timeData.length - 1] ?? 0)],
+                      showgrid: true,
+                      gridcolor: "#e0e0e0",
+                    },
+                  ])
+                ),
+                ...Object.fromEntries(
+                  channels.map((_, i) => [
+                    `yaxis${i === 0 ? '' : i + 1}`,
+                    {
+                      title: { text: `Channel ${i + 1} Amplitude`, font: { size: 13, color: "#555" } },
+                      showgrid: true,
+                      gridcolor: "#e0e0e0",
+                      autorange: true,
+                      domain: [1 - (i + 1) / channels.length, 1 - i / channels.length],
+                    },
+                  ])
+                ),
                 hovermode: "closest",
                 showlegend: true,
                 legend: {
