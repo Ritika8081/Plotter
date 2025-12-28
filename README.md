@@ -1,6 +1,9 @@
 
 
+
 # Channel Data Plotter
+
+![Channel Data Plotter Screenshot](./screenshot.png)
 
 Live Demo: [https://ritika8081.github.io/Plotter/](https://ritika8081.github.io/Plotter/)
 
