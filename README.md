@@ -3,7 +3,7 @@
 
 # Channel Data Plotter
 
-![Channel Data Plotter Screenshot](./screenshot.png)
+![Channel Data Plotter ](./public/image.png)
 
 Live Demo: [https://ritika8081.github.io/Plotter/](https://ritika8081.github.io/Plotter/)
 
@@ -27,13 +27,12 @@ A modern, interactive web application built with Next.js and TypeScript for visu
 	- Reset: Double-click the plot or use the "Reset" button
 4. **Adjust Window:** Change the window size (in seconds) to control how much data is visible at once.
 
+## Demo
+
+![App Screenshot](./public/Image2.png)
+
 ## CSV Format
 - The CSV should have at least two columns: the first is ignored (time is calculated by sample index), the second is the channel data.
-- The first row is treated as a header and skipped.
-
-Example:
-```
-Time,Channel1
 0,0.12
 1,0.15
 2,0.10
@@ -45,8 +44,6 @@ Time,Channel1
 - [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [Plotly.js](https://plotly.com/javascript/)
-- [PapaParse](https://www.papaparse.com/) (CSV parsing)
-
 ## Development
 
 1. Install dependencies:
@@ -58,7 +55,4 @@ Time,Channel1
 	npm run dev
 	```
 3. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## License
-
-MIT
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
